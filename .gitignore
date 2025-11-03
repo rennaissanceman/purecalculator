@@ -1,0 +1,69 @@
+# ========================================
+#  PYTHON + PYCHARM PROJECT (.gitignore)
+# ========================================
+
+# --- Python cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Virtual environments ---
+venv/
+.env/
+env/
+.venv/
+ENV/
+env.bak/
+
+# --- Distribution / packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- IDE (PyCharm / IntelliJ) ---
+.idea/
+*.iml
+
+# --- Logs / temp files ---
+*.log
+*.tmp
+*.bak
+*.swp
+
+# --- OS system files ---
+.DS_Store
+Thumbs.db
+
+# --- Unit tests / coverage ---
+.pytest_cache/
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+htmlcov/
+
+# --- Jupyter / notebooks ---
+.ipynb_checkpoints/
+
+# --- mypy / type checking ---
+.mypy_cache/
+.dmypy.json
+
+# --- pytest ---
+.cache/
+tests/__pycache__/
+
+# --- optional: compiled bytecode in src/tests ---
+src/__pycache__/
+tests/__pycache__/
+
+# --- local config or secrets ---
+*.env
+*.ini
+*.cfg
+config.local.*
+
+# ========================================
+#  END OF FILE
+# ========================================

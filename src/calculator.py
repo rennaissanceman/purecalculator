@@ -1,69 +1,81 @@
-from math import isfinite, isclose
+import warnings
+from math import isclose, isfinite
 from sys import float_info
 from typing import Optional
 
-# --- Operation configuration (single source of truth) ---
+__all__ = ["Calculator", "NEAR_ZERO_TOL", "ACTIONS", "main"]
+
+# --- 1) Constants / configuration -------------------------------------------------
 ACTIONS = {
-    '1': ("Addition",      "+", "sum"),
-    '2': ("Subtraction",   "-", "subtract"),
-    '3': ("Multiplication","*", "multiply"),
-    '4': ("Division",      "/", "divide"),
+    "1": ("Addition", "+", "add"),
+    "2": ("Subtraction", "-", "subtract"),
+    "3": ("Multiplication", "*", "multiply"),
+    "4": ("Division", "/", "divide"),
 }
 
-NEAR_ZERO_TOL = 1e-12  # default tolerance “close to zero”
+NEAR_ZERO_TOL = 1e-12  # default tolerance "close to zero"
 
+
+# --- 2) Core-helpers (without I/O) -----------------------------------------------
 def _finite_or_none(value: float, op_name: str) -> Optional[float]:
-    """Return the result, but only if it is finite (not inf/NaN)."""
+    """Return the value only if it is finite; otherwise, return None + warning."""
     if not isfinite(value):
-        print(f"WARNING: {op_name} produced a non-finite result (inf/NaN).")
+        warnings.warn(f"{op_name} produced a non-finite result (inf/NaN).", stacklevel=2)
         return None
     return value
 
 
+# --- 3) Logic (core) --------------------------------------------------------------
 class Calculator:
+    """Pure calculations; without I/O (print/input)."""
+
     def __init__(self, op1: float, op2: float):
         self._op1 = op1
         self._op2 = op2
 
-    def sum(self) -> Optional[float]:
-        # May go into inf at extremely large numbers
+    def add(self) -> Optional[float]:
+        # can give inf for very large values
         return _finite_or_none(self._op1 + self._op2, "addition")
 
     def subtract(self) -> Optional[float]:
-        # as above, check just in case
         return _finite_or_none(self._op1 - self._op2, "subtraction")
 
     def multiply(self) -> Optional[float]:
-        # Pre-check: if |op1| > max_float / |op2|, then multiplication overflows
+        # pre-check overflow: |x| > max / |y|
         x, y = self._op1, self._op2
         if isfinite(x) and isfinite(y):
             ay = abs(y)
             if ay != 0.0 and abs(x) > float_info.max / ay:
-                print("WARNING: multiplication would overflow (|x|*|y| > max_float).")
+                warnings.warn(
+                    "multiplication would overflow (|x|*|y| > max_float).",
+                    stacklevel=2,
+                )
                 return None
-        # Count and verify
-        return _finite_or_none(self._op1 * self._op2, "multiplication")
+        return _finite_or_none(x * y, "multiplication")
 
     def divide(self, tol: float = NEAR_ZERO_TOL) -> Optional[float]:
         x, y = self._op1, self._op2
 
-        # 1) Check the divisor: NaN/inf/zero/close to zero
+        # 1) division by zero/near-zero/NaN/Inf
         if not isfinite(y) or isclose(y, 0.0, abs_tol=tol):
-            print("WARNING: attempt to divide by (near) zero.")
+            warnings.warn("attempt to divide by (near) zero.", stacklevel=2)
             return None
 
-        # 2) Pre-check for overflow: |x|/|y| > max_float  => the result would be inf
-        #    (note: also works for very small |y|)
-        if isfinite(x) and abs(x) > float_info.max * abs(y):
-            print("WARNING: division would overflow (|x|/|y| > max_float).")
+        # 2) pre-check overflow: |x|/|y| > max_float  ->  |x| > max_float * |y|
+        if isfinite(x) and abs(x) > float_info.max * abs(y): # pragma: no cover
+            warnings.warn(
+                "division would overflow (|x|/|y| > max_float).",
+                stacklevel=2,
+            )
             return None
 
-        # 3) Count and verify (catch inf/NaN)
+        # 3) proper division + verification
         return _finite_or_none(x / y, "division")
 
 
+# --- 4) CLI (I/O) ---------------------------------------------------------------
 def _parse_number(prompt: str) -> float:
-    """Reads a number, supports decimal points, and rejects NaN/Inf."""
+    """Load a number (decimal point or comma), discard NaN/Inf."""
     while True:
         s = input(prompt).strip().replace(",", ".")
         try:
@@ -77,6 +89,7 @@ def _parse_number(prompt: str) -> float:
 
 
 def _ask_menu() -> str:
+    """Display the menu and return the user's selection (string)."""
     print("\nSelect an action by entering the number:")
     for k in sorted(ACTIONS.keys(), key=int):
         label, symbol, _ = ACTIONS[k]
@@ -85,7 +98,7 @@ def _ask_menu() -> str:
 
 
 def _run_action(calc: Calculator, choice: str) -> Optional[float]:
-    """Runs the selected operation without if/elif, returns the result or None."""
+    """Run the selected operation; no if/elif – dispatch by method name."""
     action = ACTIONS.get(choice)
     if not action:
         print("Incorrect selection. Select 1–4.")
@@ -107,51 +120,49 @@ def _ask_quit() -> bool:
     return s.startswith("y")
 
 
-def main():
+def main() -> None:
+    """CLI main loop."""
     print("=== WELCOME TO PURE CALCULATOR ===")
-    try:
-        while True:
-            op1 = _parse_number("\nEnter the first number: ")
-            op2 = _parse_number("Enter the second number: ")
-            calc = Calculator(op1, op2)
+    print("\n--- I'm launching the user interface. ---")
+    while True:
+        op1 = _parse_number("\nEnter the first number: ")
+        op2 = _parse_number("Enter the second number: ")
+        calc = Calculator(op1, op2)
 
-            choice = _ask_menu()
-            try:
-                _run_action(calc, choice)
-            except Exception as e:
-                print(f"An unexpected error has occurred: {e}")
+        choice = _ask_menu()
+        try:
+            _run_action(calc, choice)
+        except Exception as e:  # noqa: BLE001
+            # in a real app: log stack trace
+            print(f"An unexpected error has occurred: {e}")
 
-            if _ask_quit():
-                print("GOOD BYE! / SEE You Later ALIGATOR!!!")
-                break
-
-    except (KeyboardInterrupt, EOFError):
-        print("\nExiting gracefully. Bye!")
+        if _ask_quit():
+            print("GOOD BYE! / SEE YOU LATER ALLIGATOR!!!")
+            break
 
 
-def demo_tests():
+# --- 5) Demo (optional) ---------------------------------------------------------
+def demo_tests() -> None: # pragma: no cover
+    """Simple demonstrations (do not replace testing)."""
     print("\nSample tests for the Calculator class:")
     c1 = Calculator(10, 2)
-    print(f"10 + 2 = {c1.sum()}")
+    print(f"10 + 2 = {c1.add()}")
     print(f"10 - 2 = {c1.subtract()}")
     print(f"10 * 2 = {c1.multiply()}")
     print(f"10 / 2 = {c1.divide()}")
 
-    # Division by zero
     c2 = Calculator(5, 0)
     print(f"5 / 0 = {c2.divide()}")  # WARNING + None
 
-    # Division by a tiny number (close to the minimum normal ~2.22e-308)
     c3 = Calculator(5, 1e-308)
     print(f"5 / 1e-308 = {c3.divide()}")  # WARNING overflow + None
 
-    # Multiplication that would overflow
     c4 = Calculator(float_info.max, 2.0)
     print(f"max * 2 = {c4.multiply()}")  # WARNING + None
 
 
-if __name__ == "__main__":
-    demo_tests()
-    print("\n--- I'm launching the user interface. ---")
+# --- 6) Enter -------------------------------------------------------------------
+if __name__ == "__main__": # pragma: no cover
+    # Choose what to run:
+    # demo_tests()
     main()
- #gfgfg

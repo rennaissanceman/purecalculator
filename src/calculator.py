@@ -3,7 +3,16 @@ from math import isclose, isfinite
 from sys import float_info
 from typing import Optional
 
-__all__ = ["Calculator", "NEAR_ZERO_TOL", "ACTIONS", "main"]
+__all__ = ["Calculator",
+           "NEAR_ZERO_TOL",
+           "ACTIONS",
+           "main",
+           "_finite_or_none",
+           "_parse_number",
+           "_ask_menu",
+           "_run_action",
+           "_ask_quit",
+           ]
 
 # --- 1) Constants / configuration -------------------------------------------------
 ACTIONS = {
@@ -62,7 +71,7 @@ class Calculator:
             return None
 
         # 2) pre-check overflow: |x|/|y| > max_float  ->  |x| > max_float * |y|
-        if isfinite(x) and abs(x) > float_info.max * abs(y): # pragma: no cover
+        if isfinite(x) and abs(x) > float_info.max * abs(y):  # pragma: no cover
             warnings.warn(
                 "division would overflow (|x|/|y| > max_float).",
                 stacklevel=2,
@@ -74,7 +83,7 @@ class Calculator:
 
 
 # --- 4) CLI (I/O) ---------------------------------------------------------------
-def _parse_number(prompt: str) -> float:
+def _parse_number(prompt: str) -> float | None:
     """Load a number (decimal point or comma), discard NaN/Inf."""
     while True:
         s = input(prompt).strip().replace(",", ".")
@@ -142,7 +151,7 @@ def main() -> None:
 
 
 # --- 5) Demo (optional) ---------------------------------------------------------
-def demo_tests() -> None: # pragma: no cover
+def demo_tests() -> None:  # pragma: no cover
     """Simple demonstrations (do not replace testing)."""
     print("\nSample tests for the Calculator class:")
     c1 = Calculator(10, 2)
@@ -162,7 +171,7 @@ def demo_tests() -> None: # pragma: no cover
 
 
 # --- 6) Enter -------------------------------------------------------------------
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     # Choose what to run:
     # demo_tests()
     main()
